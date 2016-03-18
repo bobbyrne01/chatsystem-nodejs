@@ -1,28 +1,49 @@
-var app = require('express')();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var express = require('express'),
+	app = express(),
+  http = require('http').Server(app),
+  io = require('socket.io')(http),
+	winston = require('winston'),
+  ipaddress = '127.0.0.1',
+  port = 3000,
+	users = [];
+
+winston.level = 'debug'; // during dev
+
+// hide server paths from clients
+app.use('/socket', express.static(__dirname + '/node_modules/socket.io/node_modules/socket.io-client/'));
+app.use('/jquery', express.static(__dirname + '/node_modules/jquery/dist/'));
+app.use('/js', express.static(__dirname + '/js/'));
+app.use('/css', express.static(__dirname + '/css/'));
 
 // setup endpoint
 app.get('/', function(req, res){
+	winston.debug('GET /');
   res.sendfile('index.html');
 });
 
 // on connection, setup handlers
 io.on('connection', function(socket){
+	winston.debug('User connected');
+  io.emit('message', 'User connected');
 
-  io.emit('chat message', 'User connected.');
+	socket.on('signIn', function(msg){
+		winston.debug('User: ' + msg);
+		users.push({'user': msg, 'pubkey': 'dummy'});
+	});
 
   // send message to clients
-  socket.on('chat message', function(msg){
-    io.emit('chat message', msg);
+  socket.on('message', function(msg){
+		winston.debug('Message: ' + msg);
+    io.emit('message', msg);
   });
 
   socket.on('disconnect', function(){
-    io.emit('chat message', 'User disconnected.');
+		winston.debug('User disconnected');
+    io.emit('message', 'User disconnected');
   });
 });
 
 // start server
-http.listen(3000, function(){
-  console.log('listening on localhost:3000');
+http.listen(port, ipaddress, function(){
+  winston.info('Listening on ' + ipaddress + ':' + port);
 });
